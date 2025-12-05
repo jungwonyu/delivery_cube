@@ -1,3 +1,5 @@
+import Preload from './preload.js';
+import StartScene from './scenes/start.js';
 import PlayScene from './scenes/play.js';
 
 const config = {
@@ -16,7 +18,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: PlayScene,
+  scene: [Preload, StartScene, PlayScene],
 };
 
 const game = new Phaser.Game(config);

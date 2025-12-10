@@ -19,6 +19,39 @@ export default class MainScene extends Phaser.Scene {
     // 디버그
     this.input.on('pointerdown', pointer => console.log(`player 좌표: x: ${pointer.x}, y: ${pointer.y}`));
 
+    // 모바일 스와이프 조작 추가
+    let swipeStartX = null;
+    let swipeStartY = null;
+    this.input.on('pointerdown', pointer => {
+      swipeStartX = pointer.x;
+      swipeStartY = pointer.y;
+    });
+    this.input.on('pointerup', pointer => {
+      if (swipeStartX === null || swipeStartY === null) return;
+      const dx = pointer.x - swipeStartX;
+      const dy = pointer.y - swipeStartY;
+      const threshold = 10; // 최소 스와이프 거리(px)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > threshold) {
+          this.matter.world.setGravity(0.7, 0);
+          this.infoText.setText('Gravity: RIGHT');
+        } else if (dx < -threshold) {
+          this.matter.world.setGravity(-0.7, 0);
+          this.infoText.setText('Gravity: LEFT');
+        }
+      } else {
+        if (dy > threshold) {
+          this.matter.world.setGravity(0, 0.7);
+          this.infoText.setText('Gravity: DOWN');
+        } else if (dy < -threshold) {
+          this.matter.world.setGravity(0, -0.7);
+          this.infoText.setText('Gravity: UP');
+        }
+      }
+      swipeStartX = null;
+      swipeStartY = null;
+    });
+
     // 배경 및 물리 설정
     this.matter.world.setBounds(0, 0, 1300, 750);
     this.add.image(650, 375, 'background').setDisplaySize(1300, 750);

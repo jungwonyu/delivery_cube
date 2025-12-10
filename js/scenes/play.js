@@ -12,15 +12,16 @@ export default class MainScene extends Phaser.Scene {
     this.isGameOver = false;
     this.isLevelClear = false;
     this.currentLevel = data.level || 1;
-  }
-
-  preload() {
+    this.isTextureChanging = false; 
   }
 
   create() {
-    this.matter.world.setBounds(0, 0, 1280, 720);
-    this.add.image(640, 360, 'background');
-    this.setupLevel(this.currentLevel);
+    // 디버그
+    this.input.on('pointerdown', pointer => console.log(`player 좌표: x: ${pointer.x}, y: ${pointer.y}`));
+
+    // 배경 및 물리 설정
+    this.matter.world.setBounds(0, 0, 1300, 750);
+    this.add.image(650, 375, 'background').setDisplaySize(1300, 750);
 
     // UI
     this.healthText = this.add.group();
@@ -33,6 +34,40 @@ export default class MainScene extends Phaser.Scene {
     // 화면 오른쪽 하단에 정보 텍스트 추가
     this.infoText = this.add.text(this.scale.width - 10, this.scale.height - 30, 'Gravity: DOWN', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1);
     this.speedText = this.add.text(this.scale.width - 10, this.scale.height - 10, 'Speed: 0', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1);
+
+    const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.5).setOrigin(0, 0);
+    const notice = this.add.image(this.scale.width / 2, this.scale.height / 2, 'notice').setOrigin(0.5).setScale(0.5).setAlpha(0).setDepth(9999);
+    this.tweens.add({
+      targets: notice,
+      alpha: 1,
+      duration: 500,
+      yoyo: true,
+      // hold: 1000,
+      hold: 0,
+      onComplete: () => {
+        this.setupLevel(this.currentLevel); // 레벨 설정
+        overlay.destroy();
+        notice.destroy();
+      }
+    });
+
+    // this.timeLimit = 30; // 제한 시간(초)
+    // this.timerText = this.add.text(1180, 80, `${this.timeLimit}`, { font: `24px ${firstFont}`, fill: '#ff4444' }).setOrigin(0, 0.5);
+    // this.timerEvent = this.time.addEvent({
+    //   delay: 1000,
+    //   callback: () => {
+    //     if (!this.isGameOver && !this.isLevelClear) {
+    //       this.timeLimit--;
+    //       this.timerText.setText(`${this.timeLimit}`);
+    //       if (this.timeLimit <= 0) {
+    //         this.gameOver();
+    //       }
+    //     }
+    //   },
+    //   callbackScope: this,
+    //   loop: true
+    // });
+
 
     // 입력 및 충돌 이벤트
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -53,78 +88,104 @@ export default class MainScene extends Phaser.Scene {
       return;
     }
 
-    // 플레이어 생성
-    this.player = this.add.image(80, 550, 'player').setOrigin(0.5).setScale(0.5).setDepth(1);
-    const playerBody = this.matter.bodies.rectangle(80, 550, this.player.width / 2, this.player.height / 2);
-    playerBody.label = 'player';
-    this.matter.add.gameObject(this.player, playerBody);
+    // 맵 생성
+    const map = this.make.tilemap({ key: `map_level${level}`, tileWidth: 50, tileHeight: 50 });
+    const tileset = map.addTilesetImage('tileset', 'tiles', 50, 50);
+    const layer = map.createLayer(0, tileset, 0, 0);
+    layer.setCollision([0]);
+    this.matter.world.convertTilemapLayer(layer);
 
     // 골 생성
-    this.goalZone = this.add.image(1100, 80, 'goal').setDepth(1);
+    LEVEL_MAPS[level].goal = LEVEL_MAPS[level].goal || { x: 1200, y: 80 };
+    this.goalZone = this.add.image(LEVEL_MAPS[level].goal.x, LEVEL_MAPS[level].goal.y, 'goal').setDepth(1);
     this.matter.add.gameObject(this.goalZone, { isStatic: true, isSensor: true, label: 'goal'});
 
-    // 벽 생성
-    LEVEL_MAPS[level].walls.forEach(wall => {
-      this.add.tileSprite(wall.x, wall.y, wall.width, wall.height, 'wall').setOrigin(0.5).setTileScale(0.5, 0.5);
-      this.matter.add.rectangle(wall.x, wall.y, wall.width, wall.height, { isStatic: true, label: 'wall' });
-    });
-
     // 장애물 생성
-    // LEVEL_MAPS[level].obstacles?.forEach(obstacle => {
-    //   const obs = this.add.image(obstacle.x, obstacle.y, 'obstacle').setOrigin(0.5).setScale(0.5);
-    //   const obstacleBody = this.matter.bodies.circle(obstacle.x, obstacle.y, obs.width / 4, { shape: 'circle', isStatic: false, restitution: 0.9, density: 0.05, label: 'obstacle' });
-    //   this.matter.add.gameObject(obs, obstacleBody);
-    // });
-
-    // 장애물 랜덤 위치 생성 레벨
-    for (let i = 0; i < level * 0.8; i++) {
-      const x = Phaser.Math.Between(200, 1100);
-      const y = Phaser.Math.Between(150, 600);
-      const obs = this.add.image(x, y, 'obstacle').setOrigin(0.5).setScale(0.5).setDepth(2);
-      const obstacleBody = this.matter.bodies.circle(x, y, obs.width / 4, { shape: 'circle', isStatic: false, restitution: 0.9, density: 0.05, label: 'obstacle' });
+    LEVEL_MAPS[level].obstacles?.forEach(obstacle => {
+      const obs = this.add.image(obstacle.x, obstacle.y, 'obstacle').setOrigin(0.5).setScale(0.5);
+      const obstacleBody = this.matter.bodies.circle(obstacle.x, obstacle.y, obs.width / 4, { shape: 'circle', isStatic: false, restitution: 0.9, density: 0.05, label: 'obstacle' });
       this.matter.add.gameObject(obs, obstacleBody);
-    }
+    });
 
     // 큐브 생성
-    LEVEL_MAPS[level].cubes?.forEach(cubeData => {
-      const cube = this.add.image(cubeData.x, cubeData.y, 'cube').setOrigin(0.5).setScale(0.5);
-      const cubeBody = this.matter.bodies.rectangle(cubeData.x, cubeData.y, cube.width / 2, cube.height / 2, { isStatic: true, label: 'cube' });
-      this.matter.add.gameObject(cube, cubeBody);
+    LEVEL_MAPS[level].cubes?.forEach(cube => {
+      const cubeObj = this.add.image(cube.x, cube.y, 'cube').setOrigin(0.5).setScale(0.8);
+      const cubeBody = this.matter.bodies.rectangle(cube.x, cube.y, cubeObj.width / 2, cubeObj.height / 2, { isStatic: true, label: 'cube' });
+      this.matter.add.gameObject(cubeObj, cubeBody);
+      cubeObj._tween = this.tweens.add({ targets: cubeObj, scale: 0.7, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     });
+
+    // 플레이어 생성
+    LEVEL_MAPS[level].player = LEVEL_MAPS[level].player || { x: 80, y: 650 };
+    this.player = this.add.image(LEVEL_MAPS[level].player.x, LEVEL_MAPS[level].player.y, 'player').setOrigin(0.5).setScale(0.6).setDepth(1);
+    const playerBody = this.matter.bodies.rectangle(LEVEL_MAPS[level].player.x, LEVEL_MAPS[level].player.y, this.player.width / 2, this.player.height / 2 + 10);
+    playerBody.label = 'player';
+    this.matter.add.gameObject(this.player, playerBody);
   }
 
-  handleCollision(event, bodyA, bodyB) {
+  handleCollision(event, bodyA, bodyB) { // 충돌
     const isPlayerA = bodyA.label === 'player';
     const isPlayerB = bodyB.label === 'player';
     const otherBody = isPlayerA ? bodyB : bodyA;
 
     if (isPlayerA || isPlayerB) {
+      if (this.isTextureChanging) return;
       if (otherBody.label === 'goal' && !this.isLevelClear) {
-        this.levelClear();
-        return;
+        if (this.player.texture.key === 'player_cube3') {
+          this.levelClear();
+          return;
+        } else {
+          this.goalZone.setTexture('goal_off');
+          this.time.delayedCall(1000, () => {
+            this.goalZone.setTexture('goal');
+          }, [], this);
+          return;
+        }
+      }
+
+      // 박스와 충돌 시 박스 제거 & 플레이어 텍스처 변경
+      if (otherBody.label === 'cube') {
+        this.sound.play('getCubeSound');
+        otherBody.gameObject._tween.stop();
+        this.matter.world.remove(otherBody);
+        otherBody.gameObject.destroy();
+        if (this.player.texture.key === 'player_cube1') {
+          this.player.setTexture('player_cube2');
+          return;
+        } else if (this.player.texture.key === 'player_cube2') {
+          this.player.setTexture('player_cube3');
+          return;
+        } else {
+          this.player.setTexture('player_cube1');
+          return;
+        }
       }
 
       const playerBody = isPlayerA ? bodyA : bodyB;
       const speed = Math.sqrt(playerBody.velocity.x ** 2 + playerBody.velocity.y ** 2);
       const DAMAGE_THRESHOLD = 10;
-      if (otherBody.label === 'cube') {
-        otherBody.gameObject.destroy();
-        this.player.setScale(0.3); // 플레이어 크기 줄이기
-      }
 
       if (speed > DAMAGE_THRESHOLD && !this.isGameOver && !this.isLevelClear) {
         this.packageHealth--;
         this.sound.play('collisionSound');
         const lifeIcons = this.healthText.getChildren();
-        if (lifeIcons[this.packageHealth]) lifeIcons[this.packageHealth].setTexture('lifeOff');
-        this.player.setTint(0xff0000);
-        this.time.delayedCall(100, () => { if (!this.isGameOver) this.player.setTint(0xffcc00); }, [], this);
+        if (lifeIcons[this.packageHealth]) lifeIcons[this.packageHealth].setTexture('life_off');
+        this.player.prevTexture = this.player.texture.key;
+        this.isTextureChanging = true;
+        this.player.setTexture('player_wow');
+        this.time.delayedCall(500, () => { 
+          if (!this.isGameOver) 
+            this.player.setTexture(this.player.prevTexture);
+            this.isTextureChanging = false; 
+          }, [], this);
         if (this.packageHealth <= 0) this.gameOver();
       }
     }
   }
 
   levelClear() {
+    this.bgm.stop();
+    this.sound.play('levelClearSound');
     this.isLevelClear = true;
     this.matter.world.setGravity(0, 0);
     this.player.body.isStatic = true;
@@ -132,24 +193,45 @@ export default class MainScene extends Phaser.Scene {
     this.infoText.setText('Level Cleared! Press F5 to Restart.');
     this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 0x000000, 0.5).setDepth(1);
 
-    const levelClearImage = this.add.image(this.scale.width / 2, this.scale.height / 2, 'levelClear').setOrigin(0.5).setScale(0.2).setDepth(2);
-    this.tweens.add({ targets: levelClearImage, scale: 0.6, duration: 2000, ease: 'Power2' });
+    const textures = ['level_clear', 'level_clear1', 'level_clear2', 'level_clear3'];
+    let idx = 0;
+    const levelClearImage = this.add.image(this.scale.width / 2, this.scale.height / 2, textures[idx]).setOrigin(0.5).setScale(0.2).setDepth(2);
 
-    this.bgm.stop();
-    this.sound.play('levelClearSound');
+    this.tweens.add({
+      targets: levelClearImage,
+      scale: 0.5,
+      duration: 2000,
+      ease: 'Power2',
+      onComplete: () => {
+        this.time.addEvent({
+          delay: 300,
+          repeat: 2,
+          callback: () => {
+            idx = (idx + 1) % textures.length;
+            levelClearImage.setTexture(textures[idx]);
+            this.sound.play('clickSound');
+          },
+          callbackScope: this,
+        });
+      }
+    });
+
+
+    // if (this.timerEvent) this.timerEvent.remove();
 
     // 2초 후에 다음 레벨로 이동
-    this.time.delayedCall(2000, () => this.scene.restart({ level: this.currentLevel + 1 }), [], this);
+    this.time.delayedCall(4000, () => this.scene.restart({ level: this.currentLevel + 1 }), [], this);
   }
 
   gameOver() {
     this.isGameOver = true;
     this.matter.world.setGravity(0, 0);
     this.player.body.isStatic = true;
-    this.player.setTint(0x888888);
+    this.player.setTexture('player_sad');
     this.infoText.setText('GAME OVER').setColor('#ff0000');
     this.bgm.stop();
     this.sound.play('gameOverSound');
+    // if (this.timerEvent) this.timerEvent.remove();
   }
 
   update() {

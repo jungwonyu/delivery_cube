@@ -11,6 +11,8 @@ export default class Preload extends Phaser.Scene {
     this.load.spritesheet('startPlayer', 'assets/images/start/player.png', { frameWidth: 256, frameHeight: 256 });
     this.load.image('startButton', 'assets/images/start/startButton.png');
     this.load.image('startButtonHover', 'assets/images/start/startButtonHover.png');
+    this.load.image('volumeOn', 'assets/images/start/volumeOn.png');
+    this.load.image('volumeOff', 'assets/images/start/volumeOff.png');
 
     // play scene assets
     this.load.image('player', 'assets/images/play/player.png');
@@ -30,6 +32,7 @@ export default class Preload extends Phaser.Scene {
     this.load.image('cube', 'assets/images/play/cube.png');
     this.load.image('balloon', 'assets/images/play/balloon.png');
     this.load.image('notice', 'assets/images/play/notice.png');
+    this.load.image('resetButton', 'assets/images/play/resetButton.png');
 
     this.load.image('level_clear', 'assets/images/play/level_clear.png');
     this.load.image('level_clear1', 'assets/images/play/level_clear1.png');
@@ -43,6 +46,10 @@ export default class Preload extends Phaser.Scene {
     this.load.audio('clickSound', 'assets/sounds/click.mp3');
     this.load.audio('gameOverSound', 'assets/sounds/gameOver.mp3');
     this.load.audio('getCubeSound', 'assets/sounds/getCube.mp3');
+
+    // ---------------------------------- videos
+    // 레벨 10까지 다 하면 나오는 비디오
+    this.load.video('endingVideo', 'assets/videos/ending.mp4', 'loadeddata', false, true);
 
     // ----------------------------------  csv
     this.load.image('tiles', 'assets/maps/tileset.png');

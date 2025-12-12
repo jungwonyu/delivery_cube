@@ -1,7 +1,8 @@
+import { bgmManager } from '../managers/bgmManager.js';
 import { LEVEL_MAPS } from '../levels.js';
 
+const DAMAGE_THRESHOLD = 10;
 const firstFont = 'YeogiOttaeJalnan';
-
 export default class MainScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainScene' });
@@ -16,8 +17,36 @@ export default class MainScene extends Phaser.Scene {
   }
 
   create() {
+    if (this.currentLevel > 10) {
+      this.cameras.main.setBackgroundColor('#221144');
+      // 화면 가운데 비디오(endingVideo) 재생
+      const video = this.add.video(this.scale.width / 2, this.scale.height / 2, 'endingVideo').setOrigin(0.5).setScale(1.3).setMute(false); // 소리 켜기
+      video.play(true);
+
+      // 화면 하단 처음으로 가기 버튼
+      this.add.text(this.scale.width / 2, this.scale.height - 50, '처음으로 가기', { font: `24px ${firstFont}`, fill: '#ffffff', backgroundColor: '#000000' })
+        .setOrigin(0.5)
+        .setPadding(10)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+          this.sound.play('clickSound');
+          bgmManager.stop();
+          this.scene.start('StartScene');
+        });
+
+      return;
+    }
+    bgmManager.init(this, 'bgm', { volume: 0.5, loop: true });
+    bgmManager.isOn ? bgmManager.play() : bgmManager.stop();
+
     // 디버그
-    this.input.on('pointerdown', pointer => console.log(`player 좌표: x: ${pointer.x}, y: ${pointer.y}`));
+    // this.input.on('pointerdown', pointer => console.log(`player 좌표: x: ${pointer.x}, y: ${pointer.y}`));
+
+    const resetButton = this.add.image(1260, 670, 'resetButton').setScale(0.5).setInteractive({ useHandCursor: true }).setDepth(9999);
+    resetButton.on('pointerdown', () => {
+      this.sound.play('clickSound');
+      this.scene.restart({ level: this.currentLevel });
+    });
 
     // 모바일 스와이프 조작 추가
     let swipeStartX = null;
@@ -59,14 +88,14 @@ export default class MainScene extends Phaser.Scene {
     // UI
     this.healthText = this.add.group();
     for (let i = 0; i < 3; i++) {
-      const lifeIcon = this.add.image(25 + i * 40, 50, 'life').setScale(0.4);
+      const lifeIcon = this.add.image(25 + i * 40, 50, 'life').setScale(0.4).setDepth(9999);
       this.healthText.add(lifeIcon);
     }
-    this.levelText = this.add.text(10, 10, `LEVEL: ${this.currentLevel}`, { font: `16px ${firstFont}`, fill: '#ffffff' });
+    this.levelText = this.add.text(10, 10, `LEVEL: ${this.currentLevel}`, { font: `16px ${firstFont}`, fill: '#ffffff' }).setDepth(9999);
 
     // 화면 오른쪽 하단에 정보 텍스트 추가
-    this.infoText = this.add.text(this.scale.width - 10, this.scale.height - 30, 'Gravity: DOWN', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1);
-    this.speedText = this.add.text(this.scale.width - 10, this.scale.height - 10, 'Speed: 0', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1);
+    this.infoText = this.add.text(this.scale.width - 10, this.scale.height - 30, 'Gravity: DOWN', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1).setDepth(9999);
+    this.speedText = this.add.text(this.scale.width - 10, this.scale.height - 10, 'Speed: 0', { font: '16px Arial', fill: '#ffffff' }).setOrigin(1, 1).setDepth(9999);
 
     const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.5).setOrigin(0, 0);
     const notice = this.add.image(this.scale.width / 2, this.scale.height / 2, 'notice').setOrigin(0.5).setScale(0.5).setAlpha(0).setDepth(9999);
@@ -84,24 +113,6 @@ export default class MainScene extends Phaser.Scene {
       }
     });
 
-    // this.timeLimit = 30; // 제한 시간(초)
-    // this.timerText = this.add.text(1180, 80, `${this.timeLimit}`, { font: `24px ${firstFont}`, fill: '#ff4444' }).setOrigin(0, 0.5);
-    // this.timerEvent = this.time.addEvent({
-    //   delay: 1000,
-    //   callback: () => {
-    //     if (!this.isGameOver && !this.isLevelClear) {
-    //       this.timeLimit--;
-    //       this.timerText.setText(`${this.timeLimit}`);
-    //       if (this.timeLimit <= 0) {
-    //         this.gameOver();
-    //       }
-    //     }
-    //   },
-    //   callbackScope: this,
-    //   loop: true
-    // });
-
-
     // 입력 및 충돌 이벤트
     this.cursors = this.input.keyboard.createCursorKeys();
     this.matter.world.on('collisionstart', this.handleCollision, this);
@@ -109,18 +120,9 @@ export default class MainScene extends Phaser.Scene {
     // 버튼 UI 활성화
     this.createLevelButtons(this.game);
     setActiveButton(this.currentLevel);
-
-    // 배경음악
-    this.bgm = this.sound.add('bgm', { volume: 0.5, loop: true });
-    this.bgm.play();
   }
 
   setupLevel(level) {
-    if (!LEVEL_MAPS[level]) {
-      this.add.text(400, 300, 'CONGRATULATIONS!\nYou have completed all levels!', { font: `30px ${firstFont}`, fill: '#ffffff', align: 'center' }).setOrigin(0.5);
-      return;
-    }
-
     // 맵 생성
     const map = this.make.tilemap({ key: `map_level${level}`, tileWidth: 50, tileHeight: 50 });
     const tileset = map.addTilesetImage('tileset', 'tiles', 50, 50);
@@ -196,7 +198,7 @@ export default class MainScene extends Phaser.Scene {
 
       const playerBody = isPlayerA ? bodyA : bodyB;
       const speed = Math.sqrt(playerBody.velocity.x ** 2 + playerBody.velocity.y ** 2);
-      const DAMAGE_THRESHOLD = 10;
+
 
       if (speed > DAMAGE_THRESHOLD && !this.isGameOver && !this.isLevelClear) {
         this.packageHealth--;
@@ -217,12 +219,11 @@ export default class MainScene extends Phaser.Scene {
   }
 
   levelClear() {
-    this.bgm.stop();
+    bgmManager.stop();
     this.sound.play('levelClearSound');
     this.isLevelClear = true;
     this.matter.world.setGravity(0, 0);
     this.player.body.isStatic = true;
-    this.player.setTint(0x00cc00);
     this.infoText.setText('Level Cleared! Press F5 to Restart.');
     this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 0x000000, 0.5).setDepth(1);
 
@@ -249,9 +250,6 @@ export default class MainScene extends Phaser.Scene {
       }
     });
 
-
-    // if (this.timerEvent) this.timerEvent.remove();
-
     // 2초 후에 다음 레벨로 이동
     this.time.delayedCall(4000, () => this.scene.restart({ level: this.currentLevel + 1 }), [], this);
   }
@@ -262,9 +260,8 @@ export default class MainScene extends Phaser.Scene {
     this.player.body.isStatic = true;
     this.player.setTexture('player_sad');
     this.infoText.setText('GAME OVER').setColor('#ff0000');
-    this.bgm.stop();
+    bgmManager.stop();
     this.sound.play('gameOverSound');
-    // if (this.timerEvent) this.timerEvent.remove();
   }
 
   update() {
@@ -298,7 +295,7 @@ export default class MainScene extends Phaser.Scene {
       const btn = document.createElement('button');
       btn.textContent = `LEVEL ${i}`;
       btn.onclick = () => {
-        this.bgm.stop();
+        bgmManager.stop();
         this.sound.play('clickSound');
         this.scene.start('MainScene', { level: i });
         setActiveButton(i);

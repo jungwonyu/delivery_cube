@@ -19,7 +19,6 @@ export default class MainScene extends Phaser.Scene {
   create() {
     if (this.currentLevel > 10) {
       this.cameras.main.setBackgroundColor('#221144');
-      // 화면 가운데 비디오(endingVideo) 재생
       const video = this.add.video(this.scale.width / 2, this.scale.height / 2, 'endingVideo').setOrigin(0.5).setScale(1.3).setMute(false); // 소리 켜기
       video.play(true);
 
@@ -55,6 +54,7 @@ export default class MainScene extends Phaser.Scene {
       swipeStartX = pointer.x;
       swipeStartY = pointer.y;
     });
+
     this.input.on('pointerup', pointer => {
       if (swipeStartX === null || swipeStartY === null) return;
       const dx = pointer.x - swipeStartX;
@@ -99,13 +99,7 @@ export default class MainScene extends Phaser.Scene {
 
     const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.5).setOrigin(0, 0);
     const notice = this.add.image(this.scale.width / 2, this.scale.height / 2, 'notice').setOrigin(0.5).setScale(0.5).setAlpha(0).setDepth(9999);
-    this.tweens.add({
-      targets: notice,
-      alpha: 1,
-      duration: 500,
-      yoyo: true,
-      // hold: 1000,
-      hold: 0,
+    this.tweens.add({ targets: notice, alpha: 1, duration: 500, yoyo: true, hold: 1000,
       onComplete: () => {
         this.setupLevel(this.currentLevel); // 레벨 설정
         overlay.destroy();
@@ -118,8 +112,8 @@ export default class MainScene extends Phaser.Scene {
     this.matter.world.on('collisionstart', this.handleCollision, this);
 
     // 버튼 UI 활성화
-    this.createLevelButtons(this.game);
-    setActiveButton(this.currentLevel);
+    // this.createLevelButtons(this.game);
+    // setActiveButton(this.currentLevel);
   }
 
   setupLevel(level) {
